@@ -10,6 +10,7 @@ const authRoutes = require('./routes/authRoutes');
 const restaurantRoutes = require('./routes/restaurantRoutes');
 const tableRoutes = require('./routes/tableRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api', tableRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/ai', aiRoutes);
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ message: 'API is healthy' });

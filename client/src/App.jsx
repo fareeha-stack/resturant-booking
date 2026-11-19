@@ -81,8 +81,14 @@ function AuthPage({ mode }) {
 }
 
 function RestaurantsPage() {
+  const { token } = useAuth()
   const [restaurants, setRestaurants] = useState([])
   const [filters, setFilters] = useState({ cuisine: '', location: '' })
+  const [aiForm, setAiForm] = useState({ cuisine: '', location: '', partySize: '', preference: '' })
+  const [recommendations, setRecommendations] = useState([])
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState('')
+  const [aiMessage, setAiMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -97,6 +103,30 @@ function RestaurantsPage() {
 
   useEffect(() => { loadRestaurants() }, [])
 
+  async function getRecommendations(event) {
+    event.preventDefault()
+    setAiError('')
+    setAiMessage('')
+    setRecommendations([])
+    if (!token) {
+      setAiError('Log in to get personalized recommendations.')
+      return
+    }
+
+    setAiLoading(true)
+    try {
+      const payload = { ...aiForm }
+      if (payload.partySize) payload.partySize = Number(payload.partySize)
+      const { data } = await api.post('/ai/recommend', payload)
+      setRecommendations(data.recommendations || [])
+      setAiMessage(data.message || '')
+    } catch (err) {
+      setAiError(messageFrom(err))
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
   return (
     <main className="page-shell">
       <section className="hero-copy">
@@ -109,6 +139,22 @@ function RestaurantsPage() {
         <label>Area<input placeholder="City or neighborhood" value={filters.location} onChange={(e) => setFilters({ ...filters, location: e.target.value })} /></label>
         <button className="button primary">Find a table</button>
       </form>
+      <section className="ai-panel">
+        <div className="ai-heading"><div><p className="eyebrow">A little help choosing</p><h2>AI Recommendations</h2><p className="muted">Tell us what you’re in the mood for and we’ll suggest a few approved places.</p></div><span className="ai-spark">✦</span></div>
+        <form className="ai-form" onSubmit={getRecommendations}>
+          <label>Cuisine<input placeholder="Any cuisine" value={aiForm.cuisine} onChange={(e) => setAiForm({ ...aiForm, cuisine: e.target.value })} /></label>
+          <label>Location<input placeholder="Any area" value={aiForm.location} onChange={(e) => setAiForm({ ...aiForm, location: e.target.value })} /></label>
+          <label>Party size<input type="number" min="1" max="30" placeholder="Optional" value={aiForm.partySize} onChange={(e) => setAiForm({ ...aiForm, partySize: e.target.value })} /></label>
+          <label className="ai-preference">What matters to you?<input placeholder="Quiet, family-friendly, outdoor seating…" value={aiForm.preference} onChange={(e) => setAiForm({ ...aiForm, preference: e.target.value })} /></label>
+          <button className="button primary" disabled={aiLoading}>{aiLoading ? 'Finding your matches…' : 'Get recommendations'}</button>
+        </form>
+        {aiError && <p className="notice error" role="alert">{aiError} {!token && <Link to="/login">Log in</Link>}</p>}
+        {aiMessage && <p className="notice">{aiMessage}</p>}
+        {recommendations.length > 0 && <div className="recommendation-grid">{recommendations.map((item) => <Link className="recommendation-card" key={item.restaurantId} to={'/restaurants/' + item.restaurantId}>
+          {item.imageUrl ? <img src={item.imageUrl} alt="" /> : <div className="recommendation-image">{item.cuisine || 'GatherTable'}</div>}
+          <div><p className="eyebrow">{item.cuisine || 'Restaurant'}</p><h3>{item.name}</h3><p className="muted">{item.address}</p><p className="recommendation-reason">{item.reason}</p></div>
+        </Link>)}</div>}
+      </section>
       <div className="section-heading"><div><p className="eyebrow">The shortlist</p><h2>Restaurants to love</h2></div><span className="muted">{restaurants.length} places</span></div>
       <PageMessage error={error} loading={loading} />
       {!loading && !error && restaurants.length === 0 && <p className="empty">No restaurants found. Try a different cuisine or area.</p>}
